@@ -1,8 +1,10 @@
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.Buffer;
 
 public class Main {
     public static void main(String[] args) {
@@ -30,10 +32,24 @@ public class Main {
             if (request_api_version < 0 || request_api_version > 4) {
                 error_code = 35;
             }
+
+            ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
+            DataOutputStream body = new DataOutputStream(bodyStream);
+            body.writeInt(correlation_id);
+            body.writeShort(error_code);
+            body.writeByte(2);
+            body.writeShort(18);
+            body.writeShort(0);
+            body.writeShort(4);
+            body.writeByte(0);
+            body.writeInt(0);
+            body.writeByte(0);
+            body.flush();
+
+            byte[] byteArray = bodyStream.toByteArray();
             DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
-            out.writeInt(0);
-            out.writeInt(correlation_id);
-            out.writeShort(error_code);
+            out.writeInt(byteArray.length);
+            out.write(byteArray);
             out.flush();
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
