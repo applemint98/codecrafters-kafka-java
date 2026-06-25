@@ -1,6 +1,7 @@
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -21,36 +22,42 @@ public class Main {
             serverSocket.setReuseAddress(true);
             // Wait for connection from client.
             clientSocket = serverSocket.accept();
-
             DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-            int message_size = in.readInt();
-            short request_api_key = in.readShort();
-            short request_api_version = in.readShort();
-            int correlation_id = in.readInt();
-
-            short error_code = 0;
-            if (request_api_version < 0 || request_api_version > 4) {
-                error_code = 35;
-            }
-
-            ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
-            DataOutputStream body = new DataOutputStream(bodyStream);
-            body.writeInt(correlation_id);
-            body.writeShort(error_code);
-            body.writeByte(2);
-            body.writeShort(18);
-            body.writeShort(0);
-            body.writeShort(4);
-            body.writeByte(0);
-            body.writeInt(0);
-            body.writeByte(0);
-            body.flush();
-
-            byte[] byteArray = bodyStream.toByteArray();
             DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
-            out.writeInt(byteArray.length);
-            out.write(byteArray);
-            out.flush();
+
+            while(true){
+                try {
+                    int message_size = in.readInt();
+                    short request_api_key = in.readShort();
+                    short request_api_version = in.readShort();
+                    int correlation_id = in.readInt();
+
+                    short error_code = 0;
+                    if (request_api_version < 0 || request_api_version > 4) {
+                        error_code = 35;
+                    }
+
+                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
+                    DataOutputStream body = new DataOutputStream(bodyStream);
+                    body.writeInt(correlation_id);
+                    body.writeShort(error_code);
+                    body.writeByte(2);
+                    body.writeShort(18);
+                    body.writeShort(0);
+                    body.writeShort(4);
+                    body.writeByte(0);
+                    body.writeInt(0);
+                    body.writeByte(0);
+                    body.flush();
+
+                    byte[] byteArray = bodyStream.toByteArray();
+                    out.writeInt(byteArray.length);
+                    out.write(byteArray);
+                    out.flush();
+                } catch (EOFException e) {
+                    break;
+                }
+            }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         } finally {
