@@ -46,17 +46,25 @@ public class Main {
                                 DataOutputStream body = new DataOutputStream(bodyStream);
                                 body.writeInt(correlation_id);
                                 body.writeShort(error_code);
-                                body.writeByte(2);
+                                body.writeByte(3); // api_keys array, real count + 1 because of null
+
                                 body.writeShort(18);
                                 body.writeShort(0);
                                 body.writeShort(4);
                                 body.writeByte(0);
                                 body.writeInt(0);
                                 body.writeByte(0);
+
+                                body.writeShort(75);
+                                body.writeShort(0);
+                                body.writeShort(0);
+                                body.writeByte(0);
+                                body.writeInt(0);
+                                body.writeByte(0);
                                 body.flush();
 
                                 byte[] byteArray = bodyStream.toByteArray();
-                                out.writeInt(byteArray.length);
+                                out.writeInt(byteArray.length); // message_size
                                 out.write(byteArray);
                                 out.flush();
                             } catch (EOFException e) {
