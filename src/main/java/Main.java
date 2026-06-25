@@ -31,6 +31,7 @@ public class Main {
                     short request_api_key = in.readShort();
                     short request_api_version = in.readShort();
                     int correlation_id = in.readInt();
+                    in.skipBytes(message_size - 8);
 
                     short error_code = 0;
                     if (request_api_version < 0 || request_api_version > 4) {
