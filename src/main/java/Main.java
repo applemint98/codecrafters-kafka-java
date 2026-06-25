@@ -52,14 +52,15 @@ public class Main {
                                 body.writeShort(18);
                                 body.writeShort(0);
                                 body.writeShort(4);
+                                body.writeByte(0);
 
                                 // DescribeTopicPartitions
                                 body.writeShort(75);
                                 body.writeShort(0);
                                 body.writeShort(0);
+                                body.writeByte(0);
 
                                 // TagBuffer & throttle_time_ms
-                                body.writeByte(0);
                                 body.writeInt(0);
                                 body.writeByte(0);
                                 body.flush();
