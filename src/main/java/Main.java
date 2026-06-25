@@ -5,7 +5,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.Buffer;
 
 public class Main {
     public static void main(String[] args) {
@@ -21,43 +20,53 @@ public class Main {
             // ensures that we don't run into 'Address already in use' errors
             serverSocket.setReuseAddress(true);
             // Wait for connection from client.
-            clientSocket = serverSocket.accept();
-            DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-            DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 
-            while(true){
-                try {
-                    int message_size = in.readInt();
-                    short request_api_key = in.readShort();
-                    short request_api_version = in.readShort();
-                    int correlation_id = in.readInt();
-                    in.skipBytes(message_size - 8);
+            while (true) {
+                clientSocket = serverSocket.accept();
+                Socket socket = clientSocket;
+                new Thread(() -> {
+                    try {
+                        DataInputStream in = new DataInputStream(socket.getInputStream());
+                        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 
-                    short error_code = 0;
-                    if (request_api_version < 0 || request_api_version > 4) {
-                        error_code = 35;
+                        while (true) {
+                            try {
+                                int message_size = in.readInt();
+                                short request_api_key = in.readShort();
+                                short request_api_version = in.readShort();
+                                int correlation_id = in.readInt();
+                                in.skipBytes(message_size - 8);
+
+                                short error_code = 0;
+                                if (request_api_version < 0 || request_api_version > 4) {
+                                    error_code = 35;
+                                }
+
+                                ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
+                                DataOutputStream body = new DataOutputStream(bodyStream);
+                                body.writeInt(correlation_id);
+                                body.writeShort(error_code);
+                                body.writeByte(2);
+                                body.writeShort(18);
+                                body.writeShort(0);
+                                body.writeShort(4);
+                                body.writeByte(0);
+                                body.writeInt(0);
+                                body.writeByte(0);
+                                body.flush();
+
+                                byte[] byteArray = bodyStream.toByteArray();
+                                out.writeInt(byteArray.length);
+                                out.write(byteArray);
+                                out.flush();
+                            } catch (EOFException e) {
+                                break;
+                            }
+                        }
+                    } catch (IOException e) {
+                        System.out.println("IOException: " + e.getMessage());
                     }
-
-                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
-                    DataOutputStream body = new DataOutputStream(bodyStream);
-                    body.writeInt(correlation_id);
-                    body.writeShort(error_code);
-                    body.writeByte(2);
-                    body.writeShort(18);
-                    body.writeShort(0);
-                    body.writeShort(4);
-                    body.writeByte(0);
-                    body.writeInt(0);
-                    body.writeByte(0);
-                    body.flush();
-
-                    byte[] byteArray = bodyStream.toByteArray();
-                    out.writeInt(byteArray.length);
-                    out.write(byteArray);
-                    out.flush();
-                } catch (EOFException e) {
-                    break;
-                }
+                }).start();
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
