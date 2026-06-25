@@ -48,16 +48,17 @@ public class Main {
                                 body.writeShort(error_code);
                                 body.writeByte(3); // api_keys array, real count + 1 because of null
 
+                                // ApiVersions
                                 body.writeShort(18);
                                 body.writeShort(0);
                                 body.writeShort(4);
-                                body.writeByte(0);
-                                body.writeInt(0);
-                                body.writeByte(0);
 
+                                // DescribeTopicPartitions
                                 body.writeShort(75);
                                 body.writeShort(0);
                                 body.writeShort(0);
+
+                                // TagBuffer & throttle_time_ms
                                 body.writeByte(0);
                                 body.writeInt(0);
                                 body.writeByte(0);
