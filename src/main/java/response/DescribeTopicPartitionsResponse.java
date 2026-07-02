@@ -14,8 +14,9 @@ public record DescribeTopicPartitionsResponse(
         int correlationId,
         int throttleTime,
         List<Topic> topics
-) {
+) implements Response {
 
+    @Override
     public void writeTo(DataOutputStream out) throws IOException {
         out.writeInt(correlationId);
         writeEmptyTagBuffer(out);

@@ -10,7 +10,9 @@ public record ApiVersionsResponse(
         short errorCode,
         List<ApiKey> apiKeys,
         int throttleTimeMs
-) {
+) implements Response {
+
+    @Override
     public void writeTo(DataOutputStream out) throws IOException {
         out.writeInt(correlationId);
         out.writeShort(errorCode);

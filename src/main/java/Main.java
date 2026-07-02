@@ -21,6 +21,7 @@ import response.ApiVersionsResponse;
 import response.DescribeTopicPartitionsResponse;
 import response.DescribeTopicPartitionsResponse.Partition;
 import response.DescribeTopicPartitionsResponse.Topic;
+import response.Response;
 
 public class Main {
 
@@ -112,15 +113,7 @@ public class Main {
                                             .throttleTimeMs(0)
                                             .build();
 
-                                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
-                                    DataOutputStream body = new DataOutputStream(bodyStream);
-                                    response.writeTo(body);
-                                    body.flush();
-
-                                    byte[] byteArray = bodyStream.toByteArray();
-                                    out.writeInt(byteArray.length);
-                                    out.write(byteArray);
-                                    out.flush();
+                                    send(out, response);
                                 } else if (request_api_key == 75) {
                                     // Request
                                     short client_id_length = in.readShort();
@@ -189,15 +182,8 @@ public class Main {
                                                     .topics(topics)
                                                     .build();
 
-                                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
-                                    DataOutputStream body = new DataOutputStream(bodyStream);
-                                    response.writeTo(body);
-                                    body.flush();
+                                    send(out, response);
 
-                                    byte[] byteArray = bodyStream.toByteArray();
-                                    out.writeInt(byteArray.length); // message_size
-                                    out.write(byteArray);
-                                    out.flush();
                                 }
                             } catch (EOFException e) {
                                 break;
@@ -219,6 +205,18 @@ public class Main {
                 System.out.println("IOException: " + e.getMessage());
             }
         }
+    }
+
+    private static void send(DataOutputStream out, Response response) throws IOException {
+        ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
+        DataOutputStream body = new DataOutputStream(bodyStream);
+        response.writeTo(body);
+        body.flush();
+
+        byte[] byteArray = bodyStream.toByteArray();
+        out.writeInt(byteArray.length); // message_size
+        out.write(byteArray);
+        out.flush();
     }
 
     private static UUID toUUID(byte[] bytes) {
