@@ -15,7 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import metadata.MetadataRecord;
+import metadata.MetadataRecord.PartitionRecord;
 import metadata.RecordBatch;
+import response.ApiVersionsResponse;
 import response.DescribeTopicPartitionsResponse;
 import response.DescribeTopicPartitionsResponse.Partition;
 import response.DescribeTopicPartitionsResponse.Topic;
@@ -92,32 +94,31 @@ public class Main {
                                         error_code = 35;
                                     }
 
+                                    ApiVersionsResponse response = ApiVersionsResponse.builder()
+                                            .correlationId(correlation_id)
+                                            .errorCode(error_code)
+                                            .apiKeys(List.of(
+                                                    ApiVersionsResponse.ApiKey.builder()
+                                                            .apiKey((short) 18)
+                                                            .minVersion((short) 0)
+                                                            .maxVersion((short) 4)
+                                                            .build(),
+                                                    ApiVersionsResponse.ApiKey.builder()
+                                                            .apiKey((short) 75)
+                                                            .minVersion((short) 0)
+                                                            .maxVersion((short) 0)
+                                                            .build()
+                                            ))
+                                            .throttleTimeMs(0)
+                                            .build();
+
                                     ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
                                     DataOutputStream body = new DataOutputStream(bodyStream);
-
-                                    body.writeInt(correlation_id);
-                                    body.writeShort(error_code);
-                                    body.writeByte(3); // api_keys array, real count + 1 because of null
-
-                                    // ApiVersions
-                                    body.writeShort(18);
-                                    body.writeShort(0);
-                                    body.writeShort(4);
-                                    body.writeByte(0);
-
-                                    // DescribeTopicPartitions
-                                    body.writeShort(75);
-                                    body.writeShort(0);
-                                    body.writeShort(0);
-                                    body.writeByte(0);
-
-                                    // TagBuffer & throttle_time_ms
-                                    body.writeInt(0);
-                                    body.writeByte(0);
+                                    response.writeTo(body);
                                     body.flush();
 
                                     byte[] byteArray = bodyStream.toByteArray();
-                                    out.writeInt(byteArray.length); // message_size
+                                    out.writeInt(byteArray.length);
                                     out.write(byteArray);
                                     out.flush();
                                 } else if (request_api_key == 75) {
@@ -156,10 +157,10 @@ public class Main {
                                                     .build());
                                         } else {
                                             UUID topicId = toUUID(topicIdBytes);
-                                            List<MetadataRecord.PartitionRecord> parts =
+                                            List<PartitionRecord> parts =
                                                     partitionsByTopicId.getOrDefault(hex(topicIdBytes), List.of());
                                             List<Partition> partitions = new ArrayList<>();
-                                            for (MetadataRecord.PartitionRecord part : parts) {
+                                            for (PartitionRecord part : parts) {
                                                 partitions.add(Partition.builder()
                                                         .errorCode((short) 0)
                                                         .partitionIndex(part.partitionId())
