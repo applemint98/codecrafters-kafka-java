@@ -148,6 +148,7 @@ public class Main {
                                     body.writeInt(correlation_id);
                                     body.writeByte(0);
                                     body.writeInt(0); // throttle time
+                                    body.writeByte(topicNameStrings.size() + 1);
                                     for (String name : topicNameStrings) {
                                         byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
                                         byte[] topicId = topicIdByName.get(name);   // 맵 조회
