@@ -47,7 +47,6 @@ public class Main {
             }
 
             Map<String, byte[]> topicIdByName = new HashMap<>();
-            Map<String, List<RecordBatch.Record>> ignore;
             Map<String, List<MetadataRecord.PartitionRecord>> partitionsByTopicId = new HashMap<>();
 
             for (RecordBatch batch : batches) {
@@ -128,14 +127,11 @@ public class Main {
                                     in.skipBytes(1); // TagBuffer
 
                                     List<String> topicNameStrings = new ArrayList<>();
-
-                                    List<byte[]> topicNames = new ArrayList<>();
                                     byte topicArrayLength = (byte) (in.readByte() - 1);
                                     for (int i = 0; i < topicArrayLength; i++) {
                                         byte topicNameLength = (byte) (in.readByte() - 1);
                                         byte[] topicNameBytes = new byte[topicNameLength];
                                         in.readFully(topicNameBytes);
-                                        topicNames.add(topicNameBytes);
                                         topicNameStrings.add(new String(topicNameBytes, StandardCharsets.UTF_8));
                                         in.skipBytes(1); // TagBuffer
                                     }
@@ -237,12 +233,5 @@ public class Main {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
-    }
-
-    private static void writeIntArray(DataOutputStream body, List<Integer> arr) throws IOException {
-        body.writeByte(arr.size() + 1);
-        for (int v : arr) {
-            body.writeInt(v);
-        }
     }
 }

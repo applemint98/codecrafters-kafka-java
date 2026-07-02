@@ -97,8 +97,6 @@ public record DescribeTopicPartitionsResponse(
             }
 
             public Builder topicId(UUID v) {
-
-                return new UUID()
                 this.topicId = v;
                 return this;
             }
