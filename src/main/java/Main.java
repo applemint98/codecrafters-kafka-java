@@ -58,6 +58,7 @@ public class Main {
                             partitionsByTopicId.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
                         }
                     } catch (Exception e) {
+                        e.printStackTrace();
                         System.err.println("Error parsing record: " + record.value());
                     }
                 }
