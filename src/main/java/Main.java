@@ -87,103 +87,109 @@ public class Main {
                                 short request_api_version = in.readShort();
                                 int correlation_id = in.readInt();
 
-                                if (request_api_key == 18) {
-                                    in.skipBytes(message_size - 8);
+                                switch (request_api_version) {
+                                    case 18 -> {
+                                        in.skipBytes(message_size - 8);
 
-                                    short error_code = 0;
-                                    if (request_api_version < 0 || request_api_version > 4) {
-                                        error_code = 35;
+                                        short error_code = 0;
+                                        if (request_api_version < 0 || request_api_version > 4) {
+                                            error_code = 35;
+                                        }
+
+                                        ApiVersionsResponse response = ApiVersionsResponse.builder()
+                                                .correlationId(correlation_id)
+                                                .errorCode(error_code)
+                                                .apiKeys(List.of(
+                                                        ApiVersionsResponse.ApiKey.builder()
+                                                                .apiKey((short) 18)
+                                                                .minVersion((short) 0)
+                                                                .maxVersion((short) 4)
+                                                                .build(),
+                                                        ApiVersionsResponse.ApiKey.builder()
+                                                                .apiKey((short) 75)
+                                                                .minVersion((short) 0)
+                                                                .maxVersion((short) 0)
+                                                                .build()
+                                                ))
+                                                .throttleTimeMs(0)
+                                                .build();
+
+                                        send(out, response);
                                     }
 
-                                    ApiVersionsResponse response = ApiVersionsResponse.builder()
-                                            .correlationId(correlation_id)
-                                            .errorCode(error_code)
-                                            .apiKeys(List.of(
-                                                    ApiVersionsResponse.ApiKey.builder()
-                                                            .apiKey((short) 18)
-                                                            .minVersion((short) 0)
-                                                            .maxVersion((short) 4)
-                                                            .build(),
-                                                    ApiVersionsResponse.ApiKey.builder()
-                                                            .apiKey((short) 75)
-                                                            .minVersion((short) 0)
-                                                            .maxVersion((short) 0)
-                                                            .build()
-                                            ))
-                                            .throttleTimeMs(0)
-                                            .build();
-
-                                    send(out, response);
-                                } else if (request_api_key == 75) {
-                                    // Request
-                                    short client_id_length = in.readShort();
-                                    in.skipBytes(client_id_length);
-                                    in.skipBytes(1); // TagBuffer
-
-                                    List<String> topicNameStrings = new ArrayList<>();
-                                    byte topicArrayLength = (byte) (in.readByte() - 1);
-                                    for (int i = 0; i < topicArrayLength; i++) {
-                                        byte topicNameLength = (byte) (in.readByte() - 1);
-                                        byte[] topicNameBytes = new byte[topicNameLength];
-                                        in.readFully(topicNameBytes);
-                                        topicNameStrings.add(new String(topicNameBytes, StandardCharsets.UTF_8));
+                                    case 75 -> {
+                                        // Request
+                                        short client_id_length = in.readShort();
+                                        in.skipBytes(client_id_length);
                                         in.skipBytes(1); // TagBuffer
-                                    }
 
-                                    int responsePartitionLimit = in.readInt();
-                                    byte cursor = in.readByte();
-                                    in.skipBytes(1); // TagBuffer
+                                        List<String> topicNameStrings = new ArrayList<>();
+                                        byte topicArrayLength = (byte) (in.readByte() - 1);
+                                        for (int i = 0; i < topicArrayLength; i++) {
+                                            byte topicNameLength = (byte) (in.readByte() - 1);
+                                            byte[] topicNameBytes = new byte[topicNameLength];
+                                            in.readFully(topicNameBytes);
+                                            topicNameStrings.add(new String(topicNameBytes, StandardCharsets.UTF_8));
+                                            in.skipBytes(1); // TagBuffer
+                                        }
 
-                                    // Response
-                                    List<Topic> topics = new ArrayList<>();
-                                    for (String name : topicNameStrings) {
-                                        byte[] topicIdBytes = topicIdByName.get(name);
+                                        int responsePartitionLimit = in.readInt();
+                                        byte cursor = in.readByte();
+                                        in.skipBytes(1); // TagBuffer
 
-                                        if (topicIdBytes == null) { // 없는거
-                                            topics.add(Topic.builder()
-                                                    .errorCode((short) 3)
-                                                    .topicName(name)
-                                                    .topicId(new UUID(0, 0))
-                                                    .isInternal(false)
-                                                    .partitions(List.of())
-                                                    .topicAuthorizedOperations(0)
-                                                    .build());
-                                        } else {
-                                            UUID topicId = toUUID(topicIdBytes);
-                                            List<PartitionRecord> parts =
-                                                    partitionsByTopicId.getOrDefault(hex(topicIdBytes), List.of());
-                                            List<Partition> partitions = new ArrayList<>();
-                                            for (PartitionRecord part : parts) {
-                                                partitions.add(Partition.builder()
+                                        // Response
+                                        List<Topic> topics = new ArrayList<>();
+                                        for (String name : topicNameStrings) {
+                                            byte[] topicIdBytes = topicIdByName.get(name);
+
+                                            if (topicIdBytes == null) { // 없는거
+                                                topics.add(Topic.builder()
+                                                        .errorCode((short) 3)
+                                                        .topicName(name)
+                                                        .topicId(new UUID(0, 0))
+                                                        .isInternal(false)
+                                                        .partitions(List.of())
+                                                        .topicAuthorizedOperations(0)
+                                                        .build());
+                                            } else {
+                                                UUID topicId = toUUID(topicIdBytes);
+                                                List<PartitionRecord> parts =
+                                                        partitionsByTopicId.getOrDefault(hex(topicIdBytes), List.of());
+                                                List<Partition> partitions = new ArrayList<>();
+                                                for (PartitionRecord part : parts) {
+                                                    partitions.add(Partition.builder()
+                                                            .errorCode((short) 0)
+                                                            .partitionIndex(part.partitionId())
+                                                            .leaderId(part.leaderId())
+                                                            .leaderEpoch(part.leaderEpoch())
+                                                            .replicaNodes(part.replicaNodes())
+                                                            .isrNodes(part.isrNodes())
+                                                            .build());
+                                                }
+
+                                                topics.add(Topic.builder()
                                                         .errorCode((short) 0)
-                                                        .partitionIndex(part.partitionId())
-                                                        .leaderId(part.leaderId())
-                                                        .leaderEpoch(part.leaderEpoch())
-                                                        .replicaNodes(part.replicaNodes())
-                                                        .isrNodes(part.isrNodes())
+                                                        .topicName(name)
+                                                        .topicId(topicId)
+                                                        .isInternal(false)
+                                                        .partitions(partitions)
+                                                        .topicAuthorizedOperations(0)
                                                         .build());
                                             }
-
-                                            topics.add(Topic.builder()
-                                                    .errorCode((short) 0)
-                                                    .topicName(name)
-                                                    .topicId(topicId)
-                                                    .isInternal(false)
-                                                    .partitions(partitions)
-                                                    .topicAuthorizedOperations(0)
-                                                    .build());
                                         }
+
+                                        DescribeTopicPartitionsResponse response =
+                                                DescribeTopicPartitionsResponse.builder()
+                                                        .correlationId(correlation_id)
+                                                        .throttleTime(0)
+                                                        .topics(topics)
+                                                        .build();
+
+                                        send(out, response);
                                     }
-
-                                    DescribeTopicPartitionsResponse response =
-                                            DescribeTopicPartitionsResponse.builder()
-                                                    .correlationId(correlation_id)
-                                                    .throttleTime(0)
-                                                    .topics(topics)
-                                                    .build();
-
-                                    send(out, response);
-
+                                    default -> {
+                                        throw new RuntimeException("Unknown api key: " + request_api_version);
+                                    }
                                 }
                             } catch (EOFException e) {
                                 break;
