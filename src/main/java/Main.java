@@ -7,13 +7,18 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import metadata.MetadataRecord;
 import metadata.RecordBatch;
+import response.DescribeTopicPartitionsResponse;
+import response.DescribeTopicPartitionsResponse.Partition;
+import response.DescribeTopicPartitionsResponse.Topic;
 
 public class Main {
 
@@ -45,9 +50,11 @@ public class Main {
             Map<String, List<RecordBatch.Record>> ignore;
             Map<String, List<MetadataRecord.PartitionRecord>> partitionsByTopicId = new HashMap<>();
 
-            for  (RecordBatch batch : batches) {
+            for (RecordBatch batch : batches) {
                 for (RecordBatch.Record record : batch.records()) {
-                    if (record.value() == null) continue;
+                    if (record.value() == null) {
+                        continue;
+                    }
 
                     try {
                         MetadataRecord meta = MetadataRecord.from(record.value());
@@ -63,9 +70,6 @@ public class Main {
                     }
                 }
             }
-
-
-
 
             while (true) {
                 clientSocket = serverSocket.accept();
@@ -127,13 +131,12 @@ public class Main {
 
                                     List<byte[]> topicNames = new ArrayList<>();
                                     byte topicArrayLength = (byte) (in.readByte() - 1);
-                                    for  (int i = 0; i < topicArrayLength; i++) {
+                                    for (int i = 0; i < topicArrayLength; i++) {
                                         byte topicNameLength = (byte) (in.readByte() - 1);
                                         byte[] topicNameBytes = new byte[topicNameLength];
                                         in.readFully(topicNameBytes);
                                         topicNames.add(topicNameBytes);
                                         topicNameStrings.add(new String(topicNameBytes, StandardCharsets.UTF_8));
-                                        // TODO: TagBuffer skip or read which one is best?
                                         in.skipBytes(1); // TagBuffer
                                     }
 
@@ -142,55 +145,57 @@ public class Main {
                                     in.skipBytes(1); // TagBuffer
 
                                     // Response
-                                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
-                                    DataOutputStream body = new DataOutputStream(bodyStream);
-
-                                    body.writeInt(correlation_id);
-                                    body.writeByte(0);
-                                    body.writeInt(0); // throttle time
-                                    body.writeByte(topicNameStrings.size() + 1);
+                                    List<Topic> topics = new ArrayList<>();
                                     for (String name : topicNameStrings) {
-                                        byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
-                                        byte[] topicId = topicIdByName.get(name);   // 맵 조회
+                                        byte[] topicIdBytes = topicIdByName.get(name);
 
-                                        if (topicId == null) {
-                                            body.writeShort(3);
-                                            body.writeByte(nameBytes.length + 1);
-                                            body.write(nameBytes);
-                                            body.write(new byte[16]);   // writeInt(0)×4 to one line
-                                            body.writeByte(0);          // is_internal
-                                            body.writeByte(1);          // partitions
-                                            body.writeInt(0);           // authorized_ops
-                                            body.writeByte(0);          // TAG
+                                        if (topicIdBytes == null) { // 없는거
+                                            topics.add(Topic.builder()
+                                                    .errorCode((short) 3)
+                                                    .topicName(name)
+                                                    .topicId(new UUID(0, 0))
+                                                    .isInternal(false)
+                                                    .partitions(List.of())
+                                                    .topicAuthorizedOperations(0)
+                                                    .build());
                                         } else {
+                                            UUID topicId = toUUID(topicIdBytes);
                                             List<MetadataRecord.PartitionRecord> parts =
-                                                    partitionsByTopicId.getOrDefault(hex(topicId), List.of());
-
-                                            body.writeShort(0);         // error_code 0
-                                            body.writeByte(nameBytes.length + 1);
-                                            body.write(nameBytes);
-                                            body.write(topicId);        // UUID
-                                            body.writeByte(0);          // is_internal
-                                            body.writeByte(parts.size() + 1);
-
-                                            for (MetadataRecord.PartitionRecord p : parts) {
-                                                body.writeShort(0);              // partition error_code
-                                                body.writeInt(p.partitionId());
-                                                body.writeInt(p.leaderId());
-                                                body.writeInt(p.leaderEpoch());
-                                                writeIntArray(body, p.replicaNodes());
-                                                writeIntArray(body, p.isrNodes());
-                                                body.writeByte(1);               // eligible_leader_replicas
-                                                body.writeByte(1);               // last_known_elr
-                                                body.writeByte(1);               // offline_replicas
-                                                body.writeByte(0);               // partition TAG
+                                                    partitionsByTopicId.getOrDefault(hex(topicIdBytes), List.of());
+                                            List<Partition> partitions = new ArrayList<>();
+                                            for (MetadataRecord.PartitionRecord part : parts) {
+                                                partitions.add(Partition.builder()
+                                                        .errorCode((short) 0)
+                                                        .partitionIndex(part.partitionId())
+                                                        .leaderId(part.leaderId())
+                                                        .leaderEpoch(part.leaderEpoch())
+                                                        .replicaNodes(part.replicaNodes())
+                                                        .isrNodes(part.isrNodes())
+                                                        .build());
                                             }
-                                            body.writeInt(0);           // authorized_ops
-                                            body.writeByte(0);          // TAG
+
+                                            topics.add(Topic.builder()
+                                                    .errorCode((short) 0)
+                                                    .topicName(name)
+                                                    .topicId(topicId)
+                                                    .isInternal(false)
+                                                    .partitions(partitions)
+                                                    .topicAuthorizedOperations(0)
+                                                    .build());
                                         }
                                     }
-                                    body.writeByte(-1); // next_cursor
-                                    body.writeByte(0);  // TAG
+
+                                    DescribeTopicPartitionsResponse response =
+                                            DescribeTopicPartitionsResponse.builder()
+                                                    .correlationId(correlation_id)
+                                                    .throttleTime(0)
+                                                    .topics(topics)
+                                                    .build();
+
+                                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
+                                    DataOutputStream body = new DataOutputStream(bodyStream);
+                                    response.writeTo(body);
+                                    body.flush();
 
                                     byte[] byteArray = bodyStream.toByteArray();
                                     out.writeInt(byteArray.length); // message_size
@@ -219,14 +224,25 @@ public class Main {
         }
     }
 
+    private static UUID toUUID(byte[] bytes) {
+        ByteBuffer bb = ByteBuffer.wrap(bytes);
+        long high = bb.getLong();
+        long low = bb.getLong();
+        return new UUID(high, low);
+    }
+
     private static String hex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) sb.append(String.format("%02x", b));
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
         return sb.toString();
     }
 
     private static void writeIntArray(DataOutputStream body, List<Integer> arr) throws IOException {
         body.writeByte(arr.size() + 1);
-        for (int v : arr) body.writeInt(v);
+        for (int v : arr) {
+            body.writeInt(v);
+        }
     }
 }
