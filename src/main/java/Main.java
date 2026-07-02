@@ -87,7 +87,7 @@ public class Main {
                                 short request_api_version = in.readShort();
                                 int correlation_id = in.readInt();
 
-                                switch (request_api_version) {
+                                switch (request_api_key) {
                                     case 18 -> {
                                         in.skipBytes(message_size - 8);
 
