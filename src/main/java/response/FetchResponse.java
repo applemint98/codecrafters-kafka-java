@@ -117,7 +117,7 @@ public record FetchResponse(
             out.writeLong(logStartOffset);
             ProtocolWriter.writeCompactArray(out, abortedTransactions, (o, v) -> {});
             out.writeInt(preferredReadReplica);
-            out.writeByte(0) // records = null
+            out.writeByte(0); // records = null
             ProtocolWriter.writeEmptyTagBuffer(out);
         }
     }
