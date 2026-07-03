@@ -92,6 +92,7 @@ public class Main {
                                 switch (request_api_key) {
 
                                     case 1 -> {
+                                        in.skipBytes(message_size - 8);
                                         FetchResponse response = FetchResponse.builder()
                                                 .correlationId(correlation_id)
                                                 .throttleTimeMs(0)
