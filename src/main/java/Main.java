@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,14 +102,19 @@ public class Main {
                                                 .errorCode(error_code)
                                                 .apiKeys(List.of(
                                                         ApiVersionsResponse.ApiKey.builder()
-                                                                .apiKey((short) 18)
-                                                                .minVersion((short) 0)
-                                                                .maxVersion((short) 4)
+                                                                .apiKey(18)
+                                                                .minVersion(0)
+                                                                .maxVersion(4)
                                                                 .build(),
                                                         ApiVersionsResponse.ApiKey.builder()
-                                                                .apiKey((short) 75)
-                                                                .minVersion((short) 0)
-                                                                .maxVersion((short) 0)
+                                                                .apiKey(75)
+                                                                .minVersion(0)
+                                                                .maxVersion(0)
+                                                                .build(),
+                                                        ApiVersionsResponse.ApiKey.builder()
+                                                                .apiKey(1)
+                                                                .minVersion(0)
+                                                                .maxVersion(16)
                                                                 .build()
                                                 ))
                                                 .throttleTimeMs(0)
@@ -175,6 +181,7 @@ public class Main {
                                                         .partitions(partitions)
                                                         .topicAuthorizedOperations(0)
                                                         .build());
+                                                topics.sort(Comparator.comparing(Topic::topicName));
                                             }
                                         }
 

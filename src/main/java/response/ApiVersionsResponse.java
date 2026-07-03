@@ -82,13 +82,28 @@ public record ApiVersionsResponse(
                 return this;
             }
 
+            public Builder apiKey(int v) {
+                this.apiKey = (short) v;
+                return this;
+            }
+
             public Builder minVersion(short v) {
                 this.minVersion = v;
                 return this;
             }
 
+            public Builder minVersion(int v) {
+                this.minVersion = (short) v;
+                return this;
+            }
+
             public Builder maxVersion(short v) {
                 this.maxVersion = v;
+                return this;
+            }
+
+            public Builder maxVersion(int v) {
+                this.maxVersion = (short) v;
                 return this;
             }
 
