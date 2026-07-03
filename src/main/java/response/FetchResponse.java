@@ -56,8 +56,8 @@ public record FetchResponse(
             return this;
         }
 
-        public Builder responses(List<Topic> respons) {
-            this.responses = respons;
+        public Builder responses(List<Topic> responses) {
+            this.responses = responses;
             return this;
         }
 
@@ -115,10 +115,67 @@ public record FetchResponse(
             out.writeLong(highWatermark);
             out.writeLong(lastStableOffset);
             out.writeLong(logStartOffset);
-            ProtocolWriter.writeCompactArray(out, abortedTransactions, (o, v) -> {});
+            ProtocolWriter.writeCompactArray(out, abortedTransactions, (o, v) -> {
+            });
             out.writeInt(preferredReadReplica);
             out.writeByte(0); // records = null
             ProtocolWriter.writeEmptyTagBuffer(out);
         }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private int partitionIndex;
+            private short errorCode;
+            private long highWatermark;
+            private long lastStableOffset;
+            private long logStartOffset;
+            private List<?> abortedTransactions;
+            private int preferredReadReplica;
+
+            public Builder partitionIndex(int v) {
+                this.partitionIndex = v;
+                return this;
+            }
+
+            public Builder errorCode(short v) {
+                this.errorCode = v;
+                return this;
+            }
+
+            public Builder highWatermark(long v) {
+                this.highWatermark = v;
+                return this;
+            }
+
+            public Builder lastStableOffset(long v) {
+                this.lastStableOffset = v;
+                return this;
+            }
+
+            public Builder logStartOffset(long v) {
+                this.logStartOffset = v;
+                return this;
+            }
+
+            public Builder abortedTransactions(List<?> v) {
+                this.abortedTransactions = v;
+                return this;
+            }
+
+            public Builder preferredReadReplica(int v) {
+                this.preferredReadReplica = v;
+                return this;
+            }
+
+            public Partition build() {
+                return new Partition(partitionIndex, errorCode, highWatermark, lastStableOffset, logStartOffset,
+                        abortedTransactions, preferredReadReplica);
+            }
+        }
+
+
     }
 }

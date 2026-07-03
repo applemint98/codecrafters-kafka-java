@@ -92,15 +92,48 @@ public class Main {
                                 switch (request_api_key) {
 
                                     case 1 -> {
-                                        in.skipBytes(message_size - 8);
+                                        // Request
+                                        short clientIdLength = in.readShort();
+                                        in.skipBytes(clientIdLength);
+                                        in.skipBytes(1);
+
+                                        in.skipBytes(21);
+                                        int topicCount = in.readByte() - 1;
+
+                                        List<UUID> requestedTopicIds = new ArrayList<>();
+                                        for (int i = 0; i < topicCount; i++) {
+                                            byte[] uuidBytes = new byte[16];
+                                            in.read(uuidBytes);
+                                            requestedTopicIds.add(toUUID(uuidBytes));
+                                        }
+
+                                        List<FetchResponse.Topic> responses = new ArrayList<>();
+                                        for (UUID topicId : requestedTopicIds) {
+                                            responses.add(FetchResponse.Topic.builder()
+                                                    .topicId(topicId)
+                                                    .partitions(List.of(
+                                                            FetchResponse.Partition.builder()
+                                                                    .partitionIndex(0)
+                                                                    .errorCode((short) 100)
+                                                                    .highWatermark(0)
+                                                                    .lastStableOffset(0)
+                                                                    .logStartOffset(0)
+                                                                    .abortedTransactions(List.of())
+                                                                    .preferredReadReplica(0)
+                                                                    .build()
+                                                    ))
+                                                    .build());
+                                        }
+
+
+                                        // Response
                                         FetchResponse response = FetchResponse.builder()
                                                 .correlationId(correlation_id)
                                                 .throttleTimeMs(0)
                                                 .errorCode((short) 0)
                                                 .sessionId(0)
-                                                .responses(List.of())
+                                                .responses(responses)
                                                 .build();
-
                                         send(out, response);
                                     }
                                     case 18 -> {
