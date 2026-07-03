@@ -12,8 +12,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import metadata.MetadataRecord;
 import metadata.MetadataRecord.PartitionRecord;
@@ -53,6 +55,7 @@ public class Main {
 
             Map<String, byte[]> topicIdByName = new HashMap<>();
             Map<String, List<MetadataRecord.PartitionRecord>> partitionsByTopicId = new HashMap<>();
+            Set<UUID> existingTopicIds = new HashSet<>();
 
             for (RecordBatch batch : batches) {
                 for (RecordBatch.Record record : batch.records()) {
@@ -64,6 +67,7 @@ public class Main {
                         MetadataRecord meta = MetadataRecord.from(record.value());
                         if (meta instanceof MetadataRecord.TopicRecord t) {
                             topicIdByName.put(t.name(), t.topicId());
+                            existingTopicIds.add(toUUID(t.topicId()));
                         } else if (meta instanceof MetadataRecord.PartitionRecord p) {
                             String key = hex(p.topicId());
                             partitionsByTopicId.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
@@ -109,12 +113,14 @@ public class Main {
 
                                         List<FetchResponse.Topic> responses = new ArrayList<>();
                                         for (UUID topicId : requestedTopicIds) {
+                                            boolean exists = existingTopicIds.contains(topicId);
+                                            short errorCode = exists ? (short) 0 : (short) 100;
                                             responses.add(FetchResponse.Topic.builder()
                                                     .topicId(topicId)
                                                     .partitions(List.of(
                                                             FetchResponse.Partition.builder()
                                                                     .partitionIndex(0)
-                                                                    .errorCode((short) 100)
+                                                                    .errorCode(errorCode)
                                                                     .highWatermark(0)
                                                                     .lastStableOffset(0)
                                                                     .logStartOffset(0)
