@@ -3,6 +3,7 @@ package response;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import util.ProtocolWriter;
 
 public record FetchResponse(
@@ -10,7 +11,7 @@ public record FetchResponse(
         int throttleTimeMs,
         short errorCode,
         int sessionId,
-        List<Response> responses
+        List<Topic> responses
 ) implements Response {
 
     @Override
@@ -33,7 +34,7 @@ public record FetchResponse(
         private int throttleTimeMs;
         private short errorCode;
         private int sessionId;
-        private List<Response> responses;
+        private List<Topic> responses;
 
         public Builder correlationId(int correlationId) {
             this.correlationId = correlationId;
@@ -55,8 +56,8 @@ public record FetchResponse(
             return this;
         }
 
-        public Builder responses(List<Response> responses) {
-            this.responses = responses;
+        public Builder responses(List<Topic> respons) {
+            this.responses = respons;
             return this;
         }
 
@@ -65,10 +66,59 @@ public record FetchResponse(
         }
     }
 
-    public record Response(
-
+    public record Topic(
+            UUID topicId,
+            List<Partition> partitions
     ) {
         public void writeTo(DataOutputStream out) throws IOException {
+            ProtocolWriter.writeUUID(out, topicId);
+            ProtocolWriter.writeCompactArray(out, partitions, (o, v) -> v.writeTo(o));
+            ProtocolWriter.writeEmptyTagBuffer(out);
+        }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private UUID topicId;
+            private List<Partition> partitions;
+
+            public Builder topicId(UUID v) {
+                this.topicId = v;
+                return this;
+            }
+
+            public Builder partitions(List<Partition> v) {
+                this.partitions = v;
+                return this;
+            }
+
+            public Topic build() {
+                return new Topic(topicId, partitions);
+            }
+        }
+    }
+
+    public record Partition(
+            int partitionIndex,
+            short errorCode,
+            long highWatermark,
+            long lastStableOffset,
+            long logStartOffset,
+            List<?> abortedTransactions,
+            int preferredReadReplica
+    ) {
+        public void writeTo(DataOutputStream out) throws IOException {
+            out.writeInt(partitionIndex);
+            out.writeShort(errorCode);
+            out.writeLong(highWatermark);
+            out.writeLong(lastStableOffset);
+            out.writeLong(logStartOffset);
+            ProtocolWriter.writeCompactArray(out, abortedTransactions, (o, v) -> {});
+            out.writeInt(preferredReadReplica);
+            out.writeByte(0) // records = null
+            ProtocolWriter.writeEmptyTagBuffer(out);
         }
     }
 }

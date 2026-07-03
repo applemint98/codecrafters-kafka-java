@@ -4,6 +4,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 public final class ProtocolWriter {
 
@@ -31,6 +32,11 @@ public final class ProtocolWriter {
 
     public static void writeEmptyTagBuffer(DataOutputStream out) throws IOException {
         out.writeByte(0);
+    }
+
+    public static void writeUUID(DataOutputStream out, UUID uuid) throws IOException {
+        out.writeLong(uuid.getMostSignificantBits());
+        out.writeLong(uuid.getLeastSignificantBits());
     }
 
     private static void writeCompactArrayLength(DataOutputStream out, int size) throws IOException {

@@ -4,6 +4,7 @@ import static util.ProtocolWriter.writeCompactArray;
 import static util.ProtocolWriter.writeCompactString;
 import static util.ProtocolWriter.writeEmptyTagBuffer;
 import static util.ProtocolWriter.writeIntCompactArray;
+import static util.ProtocolWriter.writeUUID;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -67,8 +68,7 @@ public record DescribeTopicPartitionsResponse(
         public void writeTo(DataOutputStream out) throws IOException {
             out.writeShort(errorCode);
             writeCompactString(out, topicName);
-            out.writeLong(topicId.getMostSignificantBits());
-            out.writeLong(topicId.getLeastSignificantBits());
+            writeUUID(out, topicId);
             out.writeBoolean(isInternal);
             writeCompactArray(out, partitions, (o, v) -> v.writeTo(o));
             out.writeInt(topicAuthorizedOperations);
