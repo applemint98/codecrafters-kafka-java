@@ -22,6 +22,7 @@ import response.ApiVersionsResponse;
 import response.DescribeTopicPartitionsResponse;
 import response.DescribeTopicPartitionsResponse.Partition;
 import response.DescribeTopicPartitionsResponse.Topic;
+import response.FetchResponse;
 import response.Response;
 
 public class Main {
@@ -89,6 +90,18 @@ public class Main {
                                 int correlation_id = in.readInt();
 
                                 switch (request_api_key) {
+
+                                    case 1 -> {
+                                        FetchResponse response = FetchResponse.builder()
+                                                .correlationId(correlation_id)
+                                                .throttleTimeMs(0)
+                                                .errorCode((short) 0)
+                                                .sessionId(0)
+                                                .responses(List.of())
+                                                .build();
+
+                                        send(out, response);
+                                    }
                                     case 18 -> {
                                         in.skipBytes(message_size - 8);
 
