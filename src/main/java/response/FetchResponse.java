@@ -16,10 +16,12 @@ public record FetchResponse(
     @Override
     public void writeTo(DataOutputStream out) throws IOException {
         out.writeInt(correlationId);
+        ProtocolWriter.writeEmptyTagBuffer(out);
         out.writeInt(throttleTimeMs);
         out.writeShort(errorCode);
         out.writeInt(sessionId);
         ProtocolWriter.writeCompactArray(out, responses, (o, v) -> v.writeTo(o));
+        ProtocolWriter.writeEmptyTagBuffer(out);
     }
 
     public static Builder builder() {
@@ -67,7 +69,6 @@ public record FetchResponse(
 
     ) {
         public void writeTo(DataOutputStream out) throws IOException {
-            out.write(0);
         }
     }
 }
