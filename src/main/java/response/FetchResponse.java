@@ -4,6 +4,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import util.Decoder;
+import util.Encoder;
 import util.ProtocolWriter;
 
 public record FetchResponse(
@@ -107,7 +109,8 @@ public record FetchResponse(
             long lastStableOffset,
             long logStartOffset,
             List<?> abortedTransactions,
-            int preferredReadReplica
+            int preferredReadReplica,
+            byte[] records
     ) {
         public void writeTo(DataOutputStream out) throws IOException {
             out.writeInt(partitionIndex);
@@ -118,7 +121,7 @@ public record FetchResponse(
             ProtocolWriter.writeCompactArray(out, abortedTransactions, (o, v) -> {
             });
             out.writeInt(preferredReadReplica);
-            out.writeByte(0); // records = null
+            ProtocolWriter.writeCompactBytes(out, records);
             ProtocolWriter.writeEmptyTagBuffer(out);
         }
 
@@ -134,6 +137,7 @@ public record FetchResponse(
             private long logStartOffset;
             private List<?> abortedTransactions;
             private int preferredReadReplica;
+            private byte[] records;
 
             public Builder partitionIndex(int v) {
                 this.partitionIndex = v;
@@ -170,9 +174,14 @@ public record FetchResponse(
                 return this;
             }
 
+            public Builder records(byte[] v) {
+                this.records  = v;
+                return this;
+            }
+
             public Partition build() {
                 return new Partition(partitionIndex, errorCode, highWatermark, lastStableOffset, logStartOffset,
-                        abortedTransactions, preferredReadReplica);
+                        abortedTransactions, preferredReadReplica, records);
             }
         }
 

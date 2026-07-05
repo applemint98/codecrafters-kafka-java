@@ -39,6 +39,23 @@ public final class ProtocolWriter {
         out.writeLong(uuid.getLeastSignificantBits());
     }
 
+    public static void writeCompactBytes(DataOutputStream out, byte[] bytes) throws IOException {
+        if (bytes == null || bytes.length == 0) {
+            out.writeByte(0);
+        } else {
+            writeUnsignedVarInt(out, bytes.length + 1);
+            out.write(bytes);
+        }
+    }
+
+    private static void writeUnsignedVarInt(DataOutputStream out, int value) throws IOException {
+        while ((value & ~0x7F) != 0) {
+            out.writeByte((value & 0x7F) | 0x80);
+            value >>>= 7;
+        }
+        out.writeInt(value);
+    }
+
     private static void writeCompactArrayLength(DataOutputStream out, int size) throws IOException {
         out.writeByte(size + 1);
     }

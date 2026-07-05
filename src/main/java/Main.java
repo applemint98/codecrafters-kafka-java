@@ -9,6 +9,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -56,6 +58,7 @@ public class Main {
             Map<String, byte[]> topicIdByName = new HashMap<>();
             Map<String, List<MetadataRecord.PartitionRecord>> partitionsByTopicId = new HashMap<>();
             Set<UUID> existingTopicIds = new HashSet<>();
+            Map<UUID, String> nameByTopicId = new HashMap<>();
 
             for (RecordBatch batch : batches) {
                 for (RecordBatch.Record record : batch.records()) {
@@ -68,6 +71,7 @@ public class Main {
                         if (meta instanceof MetadataRecord.TopicRecord t) {
                             topicIdByName.put(t.name(), t.topicId());
                             existingTopicIds.add(toUUID(t.topicId()));
+                            nameByTopicId.put(toUUID(t.topicId()), t.name());
                         } else if (meta instanceof MetadataRecord.PartitionRecord p) {
                             String key = hex(p.topicId());
                             partitionsByTopicId.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
@@ -78,6 +82,10 @@ public class Main {
                     }
                 }
             }
+
+            Path path = Path.of("/tmp/kraft-combined-logs/" + topicName + "-0/00000000000000000000.log");
+            byte[] recordBytes = Files.readAllBytes(path);
+
 
             while (true) {
                 clientSocket = serverSocket.accept();
@@ -113,8 +121,15 @@ public class Main {
 
                                         List<FetchResponse.Topic> responses = new ArrayList<>();
                                         for (UUID topicId : requestedTopicIds) {
-                                            boolean exists = existingTopicIds.contains(topicId);
+                                            String topicName = nameByTopicId.get(topicId);
+                                            boolean exists = topicId != null;
+
                                             short errorCode = exists ? (short) 0 : (short) 100;
+                                            byte[] records = null;
+
+                                            if (exists) {
+                                                records = readPartitionLog(topicName, 0);
+                                            }
                                             responses.add(FetchResponse.Topic.builder()
                                                     .topicId(topicId)
                                                     .partitions(List.of(
@@ -126,6 +141,7 @@ public class Main {
                                                                     .logStartOffset(0)
                                                                     .abortedTransactions(List.of())
                                                                     .preferredReadReplica(0)
+                                                                    .records(records)
                                                                     .build()
                                                     ))
                                                     .build());
@@ -298,5 +314,16 @@ public class Main {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
+    }
+
+    private static byte[] readPartitionLog(String topicName, int partition) {
+        Path path = Path.of("/tmp/kraft-combined-logs/"
+                + topicName + "-" + partition
+                + "/00000000000000000000.log");
+        try {
+            return Files.readAllBytes(path);
+        } catch (IOException e) {
+            return null;
+        }
     }
 }
