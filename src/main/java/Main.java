@@ -150,6 +150,7 @@ public class Main {
                                                     .build();
                                             topics.add(topic);
                                         }
+                                        in.skipBytes(1);
 
                                         ProduceResponse response = ProduceResponse.builder()
                                                 .correlationId(correlation_id)
