@@ -180,6 +180,11 @@ public class Main {
                                                                 .apiKey(1)
                                                                 .minVersion(0)
                                                                 .maxVersion(16)
+                                                                .build(),
+                                                        ApiVersionsResponse.ApiKey.builder()
+                                                                .apiKey(0)
+                                                                .minVersion(0)
+                                                                .maxVersion(11)
                                                                 .build()
                                                 ))
                                                 .throttleTimeMs(0)
