@@ -53,7 +53,7 @@ public final class ProtocolWriter {
             out.writeByte((value & 0x7F) | 0x80);
             value >>>= 7;
         }
-        out.writeInt(value);
+        out.writeByte(value);
     }
 
     private static void writeCompactArrayLength(DataOutputStream out, int size) throws IOException {
