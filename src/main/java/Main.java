@@ -83,10 +83,6 @@ public class Main {
                 }
             }
 
-            Path path = Path.of("/tmp/kraft-combined-logs/" + topicName + "-0/00000000000000000000.log");
-            byte[] recordBytes = Files.readAllBytes(path);
-
-
             while (true) {
                 clientSocket = serverSocket.accept();
                 Socket socket = clientSocket;
