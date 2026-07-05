@@ -111,14 +111,14 @@ public class Main {
                                         List<UUID> requestedTopicIds = new ArrayList<>();
                                         for (int i = 0; i < topicCount; i++) {
                                             byte[] uuidBytes = new byte[16];
-                                            in.read(uuidBytes);
+                                            in.readFully(uuidBytes);
                                             requestedTopicIds.add(toUUID(uuidBytes));
                                         }
 
                                         List<FetchResponse.Topic> responses = new ArrayList<>();
                                         for (UUID topicId : requestedTopicIds) {
                                             String topicName = nameByTopicId.get(topicId);
-                                            boolean exists = topicId != null;
+                                            boolean exists = topicName != null;
 
                                             short errorCode = exists ? (short) 0 : (short) 100;
                                             byte[] records = null;
