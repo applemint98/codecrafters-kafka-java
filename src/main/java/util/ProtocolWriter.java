@@ -18,7 +18,7 @@ public final class ProtocolWriter {
 
     public static <T> void writeCompactArray(DataOutputStream out, List<T> arr, ElementWriter<T> writer)
             throws IOException {
-        writeCompactArrayLength(out, arr.size());
+        out.writeByte(arr.size() + 1);
         for (T v : arr) {
             writer.write(out, v);
         }
@@ -54,10 +54,6 @@ public final class ProtocolWriter {
             value >>>= 7;
         }
         out.writeByte(value);
-    }
-
-    private static void writeCompactArrayLength(DataOutputStream out, int size) throws IOException {
-        out.writeByte(size + 1);
     }
 
     @FunctionalInterface

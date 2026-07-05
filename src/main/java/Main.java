@@ -27,7 +27,9 @@ import response.DescribeTopicPartitionsResponse;
 import response.DescribeTopicPartitionsResponse.Partition;
 import response.DescribeTopicPartitionsResponse.Topic;
 import response.FetchResponse;
+import response.ProduceResponse;
 import response.Response;
+import util.Decoder;
 
 public class Main {
 
@@ -98,6 +100,65 @@ public class Main {
                                 int correlation_id = in.readInt();
 
                                 switch (request_api_key) {
+
+                                    case 0 -> {
+                                        short clientIdLength = in.readShort();
+                                        in.skipBytes(clientIdLength);
+                                        in.skipBytes(1);
+
+                                        int txnIdLen = Decoder.readUnsignedVarInt(in);
+                                        if (txnIdLen > 0) {
+                                            in.skipBytes(txnIdLen - 1);
+                                        }
+
+                                        in.skipBytes(2);
+                                        in.skipBytes(4);
+
+                                        int topicCount = Decoder.readUnsignedVarInt(in) - 1;
+
+                                        List<ProduceResponse.Topic> topics = new ArrayList<>();
+                                        for (int i = 0; i < topicCount; i++) {
+                                            int nameLen = Decoder.readUnsignedVarInt(in) - 1;
+                                            byte[] nameBytes = new byte[nameLen];
+                                            in.readFully(nameBytes);
+                                            String topicName = new String(nameBytes, StandardCharsets.UTF_8);
+
+                                            List<ProduceResponse.Partition> partitions = new ArrayList<>();
+                                            int partitionCount = Decoder.readUnsignedVarInt(in) - 1;
+                                            for (int j = 0; j < partitionCount; j++) {
+                                                int partitionIndex = in.readInt();
+                                                int recordsLen = Decoder.readUnsignedVarInt(in);
+                                                if (recordsLen > 0) {
+                                                    in.skipBytes(recordsLen - 1);
+                                                }
+                                                in.skipBytes(1);
+
+                                                ProduceResponse.Partition partition = ProduceResponse.Partition.builder()
+                                                        .index(partitionIndex)
+                                                        .errorCode((short) 3)
+                                                        .baseOffset(-1L)
+                                                        .logAppendTimeMs(-1L)
+                                                        .logStartOffset(-1L)
+                                                        .build();
+                                                partitions.add(partition);
+                                            }
+                                            in.skipBytes(1);
+
+                                            ProduceResponse.Topic topic = ProduceResponse.Topic.builder()
+                                                    .name(topicName)
+                                                    .partitions(partitions)
+                                                    .build();
+                                            topics.add(topic);
+                                        }
+
+                                        ProduceResponse response = ProduceResponse.builder()
+                                                .correlationId(correlation_id)
+                                                .topics(topics)
+                                                .throttleTime(0)
+                                                .build();
+
+                                        send(out, response);
+                                    }
 
                                     case 1 -> {
                                         // Request

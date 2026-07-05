@@ -4,8 +4,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
-import util.Decoder;
-import util.Encoder;
 import util.ProtocolWriter;
 
 public record FetchResponse(
