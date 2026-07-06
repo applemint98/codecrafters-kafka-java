@@ -1,3 +1,4 @@
+import handler.ApiHandler;
 import handler.ApiVersionsHandler;
 import handler.DescribeTopicPartitionsHandler;
 import handler.FetchHandler;
@@ -9,6 +10,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Map;
 import metadata.MetadataStore;
 import response.Response;
 import server.RequestHeader;
@@ -30,6 +32,13 @@ public class Main {
 
             MetadataStore store = MetadataStore.load(LOG_PATH);
 
+            Map<Short, ApiHandler> handlers = Map.of(
+                    (short) 0, new ProduceHandler(store),
+                    (short) 1, new FetchHandler(store),
+                    (short) 18, new ApiVersionsHandler(),
+                    (short) 75, new DescribeTopicPartitionsHandler(store)
+            );
+
             while (true) {
                 clientSocket = serverSocket.accept();
                 Socket socket = clientSocket;
@@ -40,29 +49,11 @@ public class Main {
                         while (true) {
                             try {
                                 RequestHeader header = RequestHeader.from(in);
-
-                                switch (header.apiKey()) {
-                                    case 0 -> {
-                                        Response response = new ProduceHandler(store).handle(header, in);
-                                        send(out, response);
-                                    }
-                                    case 1 -> {
-                                        Response response = new FetchHandler(store).handle(header, in);
-                                        send(out, response);
-                                    }
-                                    case 18 -> {
-                                        Response response = new ApiVersionsHandler().handle(header, in);
-                                        send(out, response);
-                                    }
-                                    case 75 -> {
-                                        Response response = new DescribeTopicPartitionsHandler(store).handle(header,
-                                                in);
-                                        send(out, response);
-                                    }
-                                    default -> {
-                                        throw new RuntimeException("Unknown api key: " + header.apiVersion());
-                                    }
+                                ApiHandler handler = handlers.get(header.apiKey());
+                                if (handler == null) {
+                                    throw new RuntimeException("Unknown api key: " + header.apiKey());
                                 }
+                                send(out, handler.handle(header, in));
                             } catch (EOFException e) {
                                 break;
                             }
