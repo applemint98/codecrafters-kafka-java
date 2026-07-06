@@ -1,9 +1,7 @@
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -14,14 +12,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import metadata.MetadataRecord;
 import metadata.MetadataRecord.PartitionRecord;
 import metadata.MetadataStore;
-import metadata.RecordBatch;
 import response.ApiVersionsResponse;
 import response.DescribeTopicPartitionsResponse;
 import response.DescribeTopicPartitionsResponse.Partition;
@@ -78,7 +72,6 @@ public class Main {
                                         in.skipBytes(4);
 
                                         int topicCount = Decoder.readUnsignedVarInt(in) - 1;
-
 
                                         // Response
 
@@ -144,7 +137,6 @@ public class Main {
                                                             StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                                                 }
                                             }
-
 
                                             in.skipBytes(1);
 
@@ -361,7 +353,7 @@ public class Main {
         body.flush();
 
         byte[] byteArray = bodyStream.toByteArray();
-        out.writeInt(byteArray.length); // message_size
+        out.writeInt(byteArray.length);
         out.write(byteArray);
         out.flush();
     }
@@ -371,14 +363,6 @@ public class Main {
         long high = bb.getLong();
         long low = bb.getLong();
         return new UUID(high, low);
-    }
-
-    private static String hex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
     }
 
     private static byte[] readPartitionLog(String topicName, int partition) {

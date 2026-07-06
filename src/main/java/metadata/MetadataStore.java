@@ -90,12 +90,4 @@ public class MetadataStore {
         long low = bb.getLong();
         return new UUID(high, low);
     }
-
-    private static String hex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
 }
