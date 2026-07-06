@@ -18,10 +18,10 @@ public class MetadataStore {
 
     private final Map<String, byte[]> topicIdByName;
     private final Map<UUID, String> nameByTopicId;
-    private final Map<String, List<PartitionRecord>> partitionsByTopicId;
+    private final Map<UUID, List<PartitionRecord>> partitionsByTopicId;
 
     private MetadataStore(Map<String, byte[]> topicIdByName, Map<UUID, String> nameByTopicId,
-                          Map<String, List<PartitionRecord>> partitionsByTopicId) {
+                          Map<UUID, List<PartitionRecord>> partitionsByTopicId) {
         this.topicIdByName = topicIdByName;
         this.nameByTopicId = nameByTopicId;
         this.partitionsByTopicId = partitionsByTopicId;
@@ -30,7 +30,7 @@ public class MetadataStore {
     public static MetadataStore load(String logPath) throws IOException {
         Map<String, byte[]> topicIdByName = new HashMap<>();
         Map<UUID, String> nameByTopicId = new HashMap<>();
-        Map<String, List<PartitionRecord>> partitionsByTopicId = new HashMap<>();
+        Map<UUID, List<PartitionRecord>> partitionsByTopicId = new HashMap<>();
 
         List<RecordBatch> batches = new ArrayList<>();
         try (DataInputStream input = new DataInputStream(
@@ -55,7 +55,7 @@ public class MetadataStore {
                         topicIdByName.put(name, topicId);
                         nameByTopicId.put(toUUID(topicId), name);
                     } else if (meta instanceof MetadataRecord.PartitionRecord p) {
-                        String key = hex(p.topicId());
+                        UUID key = toUUID(p.topicId());
                         partitionsByTopicId.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
                     }
                 } catch (Exception e) {
