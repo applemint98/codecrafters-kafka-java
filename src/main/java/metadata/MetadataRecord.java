@@ -29,7 +29,10 @@ public sealed interface MetadataRecord
         };
     }
 
-    record TopicRecord(String name, byte[] topicId) implements MetadataRecord {
+    record TopicRecord(
+            String name,
+            byte[] topicId
+    ) implements MetadataRecord {
         static TopicRecord parse(DataInputStream in) throws IOException {
             int nameLength = Decoder.readUnsignedVarInt(in) - 1;
             byte[] nameBytes = new byte[nameLength];

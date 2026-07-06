@@ -14,10 +14,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import metadata.MetadataRecord;
 import metadata.MetadataRecord.PartitionRecord;
@@ -59,7 +57,6 @@ public class Main {
 
             Map<String, byte[]> topicIdByName = new HashMap<>();
             Map<String, List<MetadataRecord.PartitionRecord>> partitionsByTopicId = new HashMap<>();
-            Set<UUID> existingTopicIds = new HashSet<>();
             Map<UUID, String> nameByTopicId = new HashMap<>();
 
             for (RecordBatch batch : batches) {
@@ -72,7 +69,6 @@ public class Main {
                         MetadataRecord meta = MetadataRecord.from(record.value());
                         if (meta instanceof MetadataRecord.TopicRecord t) {
                             topicIdByName.put(t.name(), t.topicId());
-                            existingTopicIds.add(toUUID(t.topicId()));
                             nameByTopicId.put(toUUID(t.topicId()), t.name());
                         } else if (meta instanceof MetadataRecord.PartitionRecord p) {
                             String key = hex(p.topicId());
@@ -116,12 +112,23 @@ public class Main {
 
                                         int topicCount = Decoder.readUnsignedVarInt(in) - 1;
 
+
+                                        // Response
+
                                         List<ProduceResponse.Topic> topics = new ArrayList<>();
                                         for (int i = 0; i < topicCount; i++) {
                                             int nameLen = Decoder.readUnsignedVarInt(in) - 1;
                                             byte[] nameBytes = new byte[nameLen];
                                             in.readFully(nameBytes);
                                             String topicName = new String(nameBytes, StandardCharsets.UTF_8);
+
+                                            byte[] topicIdBytes = topicIdByName.get(topicName);
+                                            boolean topicExists = topicIdBytes != null;
+
+                                            boolean partitionExists = false;
+
+
+
 
                                             List<ProduceResponse.Partition> partitions = new ArrayList<>();
                                             int partitionCount = Decoder.readUnsignedVarInt(in) - 1;
@@ -133,15 +140,38 @@ public class Main {
                                                 }
                                                 in.skipBytes(1);
 
+                                                if (topicExists) {
+                                                    List<PartitionRecord> parts = partitionsByTopicId.getOrDefault(
+                                                            hex(topicIdBytes), List.of());
+                                                    partitionExists = parts.stream()
+                                                            .anyMatch(p -> p.partitionId() == partitionIndex);
+                                                }
+                                                boolean valid = topicExists && partitionExists;
+
+                                                short errorCode;
+                                                long baseOffset, logStartOffset;
+
+                                                if (valid) {
+                                                    errorCode = 0;
+                                                    baseOffset = 0;
+                                                    logStartOffset = 0;
+                                                } else {
+                                                    errorCode = 3;
+                                                    baseOffset = -1;
+                                                    logStartOffset = -1;
+                                                }
+
                                                 ProduceResponse.Partition partition = ProduceResponse.Partition.builder()
                                                         .index(partitionIndex)
-                                                        .errorCode((short) 3)
-                                                        .baseOffset(-1L)
+                                                        .errorCode(errorCode)
+                                                        .baseOffset(baseOffset)
                                                         .logAppendTimeMs(-1L)
-                                                        .logStartOffset(-1L)
+                                                        .logStartOffset(logStartOffset)
                                                         .build();
                                                 partitions.add(partition);
                                             }
+
+
                                             in.skipBytes(1);
 
                                             ProduceResponse.Topic topic = ProduceResponse.Topic.builder()
@@ -204,7 +234,6 @@ public class Main {
                                                     ))
                                                     .build());
                                         }
-
 
                                         // Response
                                         FetchResponse response = FetchResponse.builder()
