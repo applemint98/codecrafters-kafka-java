@@ -1,3 +1,4 @@
+import handler.ApiVersionsHandler;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -23,6 +24,7 @@ import response.DescribeTopicPartitionsResponse.Topic;
 import response.FetchResponse;
 import response.ProduceResponse;
 import response.Response;
+import server.RequestHeader;
 import util.Decoder;
 
 public class Main {
@@ -51,12 +53,9 @@ public class Main {
                         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
                         while (true) {
                             try {
-                                int message_size = in.readInt();
-                                short request_api_key = in.readShort();
-                                short request_api_version = in.readShort();
-                                int correlation_id = in.readInt();
+                                RequestHeader header = RequestHeader.from(in);
 
-                                switch (request_api_key) {
+                                switch (header.apiKey()) {
 
                                     case 0 -> {
                                         short clientIdLength = in.readShort();
@@ -149,7 +148,7 @@ public class Main {
                                         in.skipBytes(1);
 
                                         ProduceResponse response = ProduceResponse.builder()
-                                                .correlationId(correlation_id)
+                                                .correlationId(header.correlationId())
                                                 .topics(topics)
                                                 .throttleTime(0)
                                                 .build();
@@ -203,7 +202,7 @@ public class Main {
 
                                         // Response
                                         FetchResponse response = FetchResponse.builder()
-                                                .correlationId(correlation_id)
+                                                .correlationId(header.correlationId())
                                                 .throttleTimeMs(0)
                                                 .errorCode((short) 0)
                                                 .sessionId(0)
@@ -212,41 +211,7 @@ public class Main {
                                         send(out, response);
                                     }
                                     case 18 -> {
-                                        in.skipBytes(message_size - 8);
-
-                                        short error_code = 0;
-                                        if (request_api_version < 0 || request_api_version > 4) {
-                                            error_code = 35;
-                                        }
-
-                                        ApiVersionsResponse response = ApiVersionsResponse.builder()
-                                                .correlationId(correlation_id)
-                                                .errorCode(error_code)
-                                                .apiKeys(List.of(
-                                                        ApiVersionsResponse.ApiKey.builder()
-                                                                .apiKey(18)
-                                                                .minVersion(0)
-                                                                .maxVersion(4)
-                                                                .build(),
-                                                        ApiVersionsResponse.ApiKey.builder()
-                                                                .apiKey(75)
-                                                                .minVersion(0)
-                                                                .maxVersion(0)
-                                                                .build(),
-                                                        ApiVersionsResponse.ApiKey.builder()
-                                                                .apiKey(1)
-                                                                .minVersion(0)
-                                                                .maxVersion(16)
-                                                                .build(),
-                                                        ApiVersionsResponse.ApiKey.builder()
-                                                                .apiKey(0)
-                                                                .minVersion(0)
-                                                                .maxVersion(11)
-                                                                .build()
-                                                ))
-                                                .throttleTimeMs(0)
-                                                .build();
-
+                                        Response response = new ApiVersionsHandler().handle(header, in);
                                         send(out, response);
                                     }
 
@@ -313,7 +278,7 @@ public class Main {
 
                                         DescribeTopicPartitionsResponse response =
                                                 DescribeTopicPartitionsResponse.builder()
-                                                        .correlationId(correlation_id)
+                                                        .correlationId(header.correlationId())
                                                         .throttleTime(0)
                                                         .topics(topics)
                                                         .build();
@@ -321,7 +286,7 @@ public class Main {
                                         send(out, response);
                                     }
                                     default -> {
-                                        throw new RuntimeException("Unknown api key: " + request_api_version);
+                                        throw new RuntimeException("Unknown api key: " + header.apiVersion());
                                     }
                                 }
                             } catch (EOFException e) {
