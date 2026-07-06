@@ -81,7 +81,7 @@ public class MetadataStore {
     }
 
     public List<PartitionRecord> partitions(byte[] topicId) {
-        return partitionsByTopicId.getOrDefault(String.valueOf(toUUID(topicId)), List.of());
+        return partitionsByTopicId.getOrDefault(toUUID(topicId), List.of());
     }
 
     private static UUID toUUID(byte[] bytes) {
