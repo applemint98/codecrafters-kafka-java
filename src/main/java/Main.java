@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 import metadata.MetadataRecord;
 import metadata.MetadataRecord.PartitionRecord;
+import metadata.MetadataStore;
 import metadata.RecordBatch;
 import response.ApiVersionsResponse;
 import response.DescribeTopicPartitionsResponse;
@@ -44,43 +45,8 @@ public class Main {
         try {
             serverSocket = new ServerSocket(port);
             serverSocket.setReuseAddress(true);
-            List<RecordBatch> batches = new ArrayList<>();
-            try (DataInputStream input = new DataInputStream(
-                    new BufferedInputStream(new FileInputStream(LOG_PATH)))) {
-                while (true) {
-                    try {
-                        batches.add(RecordBatch.from(input));
-                    } catch (EOFException e) {
-                        break;
-                    }
-                }
-            }
 
-            Map<String, byte[]> topicIdByName = new HashMap<>();
-            Map<String, List<MetadataRecord.PartitionRecord>> partitionsByTopicId = new HashMap<>();
-            Map<UUID, String> nameByTopicId = new HashMap<>();
-
-            for (RecordBatch batch : batches) {
-                for (RecordBatch.Record record : batch.records()) {
-                    if (record.value() == null) {
-                        continue;
-                    }
-
-                    try {
-                        MetadataRecord meta = MetadataRecord.from(record.value());
-                        if (meta instanceof MetadataRecord.TopicRecord t) {
-                            topicIdByName.put(t.name(), t.topicId());
-                            nameByTopicId.put(toUUID(t.topicId()), t.name());
-                        } else if (meta instanceof MetadataRecord.PartitionRecord p) {
-                            String key = hex(p.topicId());
-                            partitionsByTopicId.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        System.err.println("Error parsing record: " + record.value());
-                    }
-                }
-            }
+            MetadataStore store = MetadataStore.load(LOG_PATH);
 
             while (true) {
                 clientSocket = serverSocket.accept();
@@ -123,13 +89,10 @@ public class Main {
                                             in.readFully(nameBytes);
                                             String topicName = new String(nameBytes, StandardCharsets.UTF_8);
 
-                                            byte[] topicIdBytes = topicIdByName.get(topicName);
+                                            byte[] topicIdBytes = store.topicId(topicName);
                                             boolean topicExists = topicIdBytes != null;
 
                                             boolean partitionExists = false;
-
-
-
 
                                             List<ProduceResponse.Partition> partitions = new ArrayList<>();
                                             int partitionCount = Decoder.readUnsignedVarInt(in) - 1;
@@ -144,8 +107,7 @@ public class Main {
                                                 in.skipBytes(1);
 
                                                 if (topicExists) {
-                                                    List<PartitionRecord> parts = partitionsByTopicId.getOrDefault(
-                                                            hex(topicIdBytes), List.of());
+                                                    List<PartitionRecord> parts = store.partitions(topicIdBytes);
                                                     partitionExists = parts.stream()
                                                             .anyMatch(p -> p.partitionId() == partitionIndex);
                                                 }
@@ -221,7 +183,7 @@ public class Main {
 
                                         List<FetchResponse.Topic> responses = new ArrayList<>();
                                         for (UUID topicId : requestedTopicIds) {
-                                            String topicName = nameByTopicId.get(topicId);
+                                            String topicName = store.topicName(topicId);
                                             boolean exists = topicName != null;
 
                                             short errorCode = exists ? (short) 0 : (short) 100;
@@ -319,7 +281,7 @@ public class Main {
                                         // Response
                                         List<Topic> topics = new ArrayList<>();
                                         for (String name : topicNameStrings) {
-                                            byte[] topicIdBytes = topicIdByName.get(name);
+                                            byte[] topicIdBytes = store.topicId(name);
 
                                             if (topicIdBytes == null) { // 없는거
                                                 topics.add(Topic.builder()
@@ -332,8 +294,7 @@ public class Main {
                                                         .build());
                                             } else {
                                                 UUID topicId = toUUID(topicIdBytes);
-                                                List<PartitionRecord> parts =
-                                                        partitionsByTopicId.getOrDefault(hex(topicIdBytes), List.of());
+                                                List<PartitionRecord> parts = store.partitions(topicIdBytes);
                                                 List<Partition> partitions = new ArrayList<>();
                                                 for (PartitionRecord part : parts) {
                                                     partitions.add(Partition.builder()
