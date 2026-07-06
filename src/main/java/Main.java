@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -135,8 +136,10 @@ public class Main {
                                             for (int j = 0; j < partitionCount; j++) {
                                                 int partitionIndex = in.readInt();
                                                 int recordsLen = Decoder.readUnsignedVarInt(in);
+                                                byte[] recordBatchBytes = null;
                                                 if (recordsLen > 0) {
-                                                    in.skipBytes(recordsLen - 1);
+                                                    recordBatchBytes = new byte[recordsLen - 1];
+                                                    in.readFully(recordBatchBytes);
                                                 }
                                                 in.skipBytes(1);
 
@@ -169,6 +172,15 @@ public class Main {
                                                         .logStartOffset(logStartOffset)
                                                         .build();
                                                 partitions.add(partition);
+
+                                                if (valid && recordBatchBytes != null) {
+                                                    Path path = Path.of("/tmp/kraft-combined-logs/"
+                                                            + topicName + "-" + partitionIndex
+                                                            + "/00000000000000000000.log");
+                                                    Files.createDirectories(path.getParent());
+                                                    Files.write(path, recordBatchBytes,
+                                                            StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                                }
                                             }
 
 
