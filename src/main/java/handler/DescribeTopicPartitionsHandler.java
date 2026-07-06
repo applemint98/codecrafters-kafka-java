@@ -15,6 +15,7 @@ import response.DescribeTopicPartitionsResponse.Partition;
 import response.DescribeTopicPartitionsResponse.Topic;
 import response.Response;
 import server.RequestHeader;
+import util.Bytes;
 
 public class DescribeTopicPartitionsHandler implements ApiHandler {
 
@@ -60,7 +61,7 @@ public class DescribeTopicPartitionsHandler implements ApiHandler {
                         .topicAuthorizedOperations(0)
                         .build());
             } else {
-                UUID topicId = toUUID(topicIdBytes);
+                UUID topicId = Bytes.toUUID(topicIdBytes);
                 List<PartitionRecord> parts = store.partitions(topicIdBytes);
                 List<Partition> partitions = new ArrayList<>();
                 for (PartitionRecord part : parts) {
@@ -91,12 +92,5 @@ public class DescribeTopicPartitionsHandler implements ApiHandler {
                 .throttleTime(0)
                 .topics(topics)
                 .build();
-    }
-
-    private static UUID toUUID(byte[] bytes) {
-        ByteBuffer bb = ByteBuffer.wrap(bytes);
-        long high = bb.getLong();
-        long low = bb.getLong();
-        return new UUID(high, low);
     }
 }

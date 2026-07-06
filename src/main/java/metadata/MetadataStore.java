@@ -5,7 +5,6 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -13,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import metadata.MetadataRecord.PartitionRecord;
+import util.Bytes;
 
 public class MetadataStore {
 
@@ -53,9 +53,9 @@ public class MetadataStore {
                     MetadataRecord meta = MetadataRecord.from(record.value());
                     if (meta instanceof MetadataRecord.TopicRecord(String name, byte[] topicId)) {
                         topicIdByName.put(name, topicId);
-                        nameByTopicId.put(toUUID(topicId), name);
+                        nameByTopicId.put(Bytes.toUUID(topicId), name);
                     } else if (meta instanceof MetadataRecord.PartitionRecord p) {
-                        UUID key = toUUID(p.topicId());
+                        UUID key = Bytes.toUUID(p.topicId());
                         partitionsByTopicId.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
                     }
                 } catch (Exception e) {
@@ -81,13 +81,6 @@ public class MetadataStore {
     }
 
     public List<PartitionRecord> partitions(byte[] topicId) {
-        return partitionsByTopicId.getOrDefault(toUUID(topicId), List.of());
-    }
-
-    private static UUID toUUID(byte[] bytes) {
-        ByteBuffer bb = ByteBuffer.wrap(bytes);
-        long high = bb.getLong();
-        long low = bb.getLong();
-        return new UUID(high, low);
+        return partitionsByTopicId.getOrDefault(Bytes.toUUID(topicId), List.of());
     }
 }

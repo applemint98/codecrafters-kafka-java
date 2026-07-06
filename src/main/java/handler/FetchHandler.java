@@ -12,6 +12,7 @@ import metadata.MetadataStore;
 import response.FetchResponse;
 import response.Response;
 import server.RequestHeader;
+import util.Bytes;
 
 public class FetchHandler implements ApiHandler {
 
@@ -34,7 +35,7 @@ public class FetchHandler implements ApiHandler {
         for (int i = 0; i < topicCount; i++) {
             byte[] uuidBytes = new byte[16];
             in.readFully(uuidBytes);
-            requestedTopicIds.add(toUUID(uuidBytes));
+            requestedTopicIds.add(Bytes.toUUID(uuidBytes));
         }
 
         List<FetchResponse.Topic> responses = new ArrayList<>();
@@ -72,13 +73,6 @@ public class FetchHandler implements ApiHandler {
                 .sessionId(0)
                 .responses(responses)
                 .build();
-    }
-
-    private static UUID toUUID(byte[] bytes) {
-        ByteBuffer bb = ByteBuffer.wrap(bytes);
-        long high = bb.getLong();
-        long low = bb.getLong();
-        return new UUID(high, low);
     }
 
     private static byte[] readPartitionLog(String topicName, int partition) {
