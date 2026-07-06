@@ -1,5 +1,6 @@
 import handler.ApiVersionsHandler;
 import handler.DescribeTopicPartitionsHandler;
+import handler.FetchHandler;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -7,17 +8,14 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import metadata.MetadataRecord.PartitionRecord;
 import metadata.MetadataStore;
-import response.FetchResponse;
 import response.ProduceResponse;
 import response.Response;
 import server.RequestHeader;
@@ -151,59 +149,8 @@ public class Main {
 
                                         send(out, response);
                                     }
-
                                     case 1 -> {
-                                        // Request
-                                        short clientIdLength = in.readShort();
-                                        in.skipBytes(clientIdLength);
-                                        in.skipBytes(1);
-
-                                        in.skipBytes(21);
-                                        int topicCount = in.readByte() - 1;
-
-                                        List<UUID> requestedTopicIds = new ArrayList<>();
-                                        for (int i = 0; i < topicCount; i++) {
-                                            byte[] uuidBytes = new byte[16];
-                                            in.readFully(uuidBytes);
-                                            requestedTopicIds.add(toUUID(uuidBytes));
-                                        }
-
-                                        List<FetchResponse.Topic> responses = new ArrayList<>();
-                                        for (UUID topicId : requestedTopicIds) {
-                                            String topicName = store.topicName(topicId);
-                                            boolean exists = topicName != null;
-
-                                            short errorCode = exists ? (short) 0 : (short) 100;
-                                            byte[] records = null;
-
-                                            if (exists) {
-                                                records = readPartitionLog(topicName, 0);
-                                            }
-                                            responses.add(FetchResponse.Topic.builder()
-                                                    .topicId(topicId)
-                                                    .partitions(List.of(
-                                                            FetchResponse.Partition.builder()
-                                                                    .partitionIndex(0)
-                                                                    .errorCode(errorCode)
-                                                                    .highWatermark(0)
-                                                                    .lastStableOffset(0)
-                                                                    .logStartOffset(0)
-                                                                    .abortedTransactions(List.of())
-                                                                    .preferredReadReplica(0)
-                                                                    .records(records)
-                                                                    .build()
-                                                    ))
-                                                    .build());
-                                        }
-
-                                        // Response
-                                        FetchResponse response = FetchResponse.builder()
-                                                .correlationId(header.correlationId())
-                                                .throttleTimeMs(0)
-                                                .errorCode((short) 0)
-                                                .sessionId(0)
-                                                .responses(responses)
-                                                .build();
+                                        Response response = new FetchHandler(store).handle(header, in);
                                         send(out, response);
                                     }
                                     case 18 -> {
@@ -250,23 +197,5 @@ public class Main {
         out.writeInt(byteArray.length);
         out.write(byteArray);
         out.flush();
-    }
-
-    private static UUID toUUID(byte[] bytes) {
-        ByteBuffer bb = ByteBuffer.wrap(bytes);
-        long high = bb.getLong();
-        long low = bb.getLong();
-        return new UUID(high, low);
-    }
-
-    private static byte[] readPartitionLog(String topicName, int partition) {
-        Path path = Path.of("/tmp/kraft-combined-logs/"
-                + topicName + "-" + partition
-                + "/00000000000000000000.log");
-        try {
-            return Files.readAllBytes(path);
-        } catch (IOException e) {
-            return null;
-        }
     }
 }
